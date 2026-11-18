@@ -16,7 +16,9 @@ def pairs(api, kind):
     if kind not in ("turbo", "binary"):
         raise ValueError("Tipo de mercado não suportado")
 
-    raw = api.get_all_open_time(types=[kind]) or {}
+    
+raw = api.get_all_open_time() or {}
+
 
     return sorted(
         name
