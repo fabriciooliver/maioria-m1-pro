@@ -11,9 +11,19 @@ def connect(email,password):
     api.change_balance('PRACTICE')
     return api
 
-def pairs(api,kind):
-    raw=api.get_all_open_time() or {}
-    return sorted(k for k,v in raw.get(kind,{}).items() if isinstance(v,dict) and v.get('open'))
+
+def pairs(api, kind):
+    if kind not in ("turbo", "binary"):
+        raise ValueError("Tipo de mercado não suportado")
+
+    raw = api.get_all_open_time(types=[kind]) or {}
+
+    return sorted(
+        name
+        for name, info in raw.get(kind, {}).items()
+        if isinstance(info, dict) and info.get("open")
+    )
+
 
 def candles(api,pair,count):
     end=int(time.time()//60*60)-1
