@@ -83,13 +83,16 @@ def scan():
     except Exception as exc:
         errors.append(f'Falha na coleta: {str(exc)[:250]}')
         logging.exception('Falha geral na coleta')
-    finally:
-        if api is not None:
-            try:
-                api.close_connect()
-            except Exception:
-                logging.exception('Falha ao encerrar conexão')
-
+   finally:
+    if api is not None:
+        try:
+            websocket = getattr(api, "websocket", None)
+            if websocket is not None:
+                close = getattr(websocket, "close", None)
+                if callable(close):
+                    close()
+        except Exception:
+            logging.exception("Falha ao encerrar conexão")
     valid_rows.sort(key=lambda r: (r['ci95'][0], r['pnl']), reverse=True)
     top = valid_rows[:CONFIG['max_pairs']]
     print(f'ETAPA 6: {len(top)} pares válidos no ranking.', flush=True)
