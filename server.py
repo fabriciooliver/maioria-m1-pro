@@ -31,8 +31,17 @@ def scan():
     with lock: state['status']='analisando'
     api=None; rows=[]; errors=[]
     try:
-        api=connect(email,password)
-        available=pairs(api,CONFIG['kind'])[:CONFIG['max_pairs']]
+        
+        print("ETAPA 1: Conectando à IQ Option...", flush=True)
+        api = connect(email, password)
+
+        print("ETAPA 2: Conexão realizada.", flush=True)
+        print("ETAPA 3: Buscando pares disponíveis...", flush=True)
+
+        available = pairs(api, CONFIG['kind'])[:CONFIG['max_pairs']]
+
+        print(f"ETAPA 4: {len(available)} pares encontrados.", flush=True)
+
         if not available: errors.append('Nenhum par aberto retornado pela plataforma.')
         for pair in available:
             try:
