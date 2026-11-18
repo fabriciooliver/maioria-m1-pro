@@ -25,18 +25,11 @@ def pairs(api, kind):
         if isinstance(info, dict) and info.get("open")
     )
 
-    if kind not in ("turbo", "binary"):
-        raise ValueError("Tipo de mercado não suportado")
-
-    
-raw = api.get_all_open_time() or {}
+   
 
 
-    return sorted(
-        name
-        for name, info in raw.get(kind, {}).items()
-        if isinstance(info, dict) and info.get("open")
-    )
+
+
 
 
 def candles(api,pair,count):
