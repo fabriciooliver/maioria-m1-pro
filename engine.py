@@ -25,6 +25,17 @@ def analyze(candles, payout=86, stake=10):
         pnl=-sum(stakes) if outcome==3 else -sum(stakes[:outcome])+stakes[outcome]*p
         cycles.append({'time':datetime.fromtimestamp(t,timezone.utc).isoformat(),'signal':'CALL' if direction==1 else 'PUT','outcome':['WIN','MG1','MG2','LOSS'][outcome], 'pnl':round(pnl,2)})
     n=len(cycles); loss=sum(c['outcome']=='LOSS' for c in cycles)
+    last_loss = next(
+    (
+        datetime.fromtimestamp(
+    datetime.fromisoformat(c['time']).timestamp() + 180,
+    timezone.utc
+).isoformat()
+        for c in reversed(cycles)
+        if c['outcome'] == 'LOSS'
+    ),
+    None
+)
     wins=n-loss
     # Wilson 95% interval for observed win rate
     if n:
@@ -33,4 +44,5 @@ def analyze(candles, payout=86, stake=10):
         half=z*sqrt(ph*(1-ph)/n+z*z/(4*n*n))/den
         interval=[round(100*(mid-half),2),round(100*(mid+half),2)]
     else: interval=[0,0]
-    return {'cycles':n,'direct':sum(c['outcome']=='WIN' for c in cycles),'mg1':sum(c['outcome']=='MG1' for c in cycles),'mg2':sum(c['outcome']=='MG2' for c in cycles),'loss':loss,'win_rate':round(100*wins/n,2) if n else 0,'ci95':interval,'pnl':round(sum(c['pnl'] for c in cycles),2),'operations':cycles[-150:]}
+    return {'cycles':n,'direct':sum(c['outcome']=='WIN' for c in cycles),'mg1':sum(c['outcome']=='MG1' for c in cycles),'mg2':sum(c['outcome']=='MG2' for c in cycles),'loss':loss,'win_rate':round(100*wins/n,2) if n else 0,'ci95':interval,'pnl':round(sum(c['pnl'] for c in cycles),2),'last_loss': last_loss,
+'operations': cycles[-150:]}
