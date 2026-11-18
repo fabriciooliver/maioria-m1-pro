@@ -1,6 +1,8 @@
 import os
+import sys
 import threading
 import time
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -18,24 +20,21 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 app = FastAPI(title='Maioria M1 Pro')
 app.mount('/static', StaticFiles(directory=str(STATIC_DIR)), name='static')
 
-lock = threading.Lock()
-state = {
-    'status': 'aguardando',
-    'updated_at': None,
-    'rows': [],
-    'errors': [],
-    'scan_count': 0,
-}
-
 CONFIG = {
     'kind': os.getenv('IQ_MARKET', 'turbo'),
     'max_pairs': max(1, min(50, int(os.getenv('MAX_PAIRS', '15')))),
-    'candidates': max(1, min(100, int(os.getenv('SCAN_CANDIDATES', '35')))),
+    'max_candidates': max(1, min(100, int(os.getenv('MAX_CANDIDATES', '35')))),
     'min_cycles': max(1, int(os.getenv('MIN_CYCLES', '30'))),
     'candles': max(100, min(10000, int(os.getenv('CANDLES_PER_PAIR', '2000')))),
     'payout': float(os.getenv('PAYOUT', '86')),
     'stake': float(os.getenv('STAKE', '10')),
     'interval': max(120, int(os.getenv('SCAN_INTERVAL_SECONDS', '300'))),
+}
+
+lock = threading.Lock()
+state = {
+    'status': 'aguardando', 'updated_at': None,
+    'rows': [], 'errors': [], 'scan_count': 0,
 }
 
 
@@ -44,85 +43,76 @@ def scan():
     password = os.getenv('IQ_PASSWORD')
     if not email or not password:
         with lock:
-            state.update(
-                status='configuração pendente',
-                errors=['Configure IQ_EMAIL e IQ_PASSWORD nas variáveis secretas do Render.'],
-            )
+            state.update(status='configuração pendente', errors=[
+                'Configure IQ_EMAIL e IQ_PASSWORD nas variáveis secretas do Render.'
+            ])
         return
 
     with lock:
         state['status'] = 'analisando'
 
     api = None
-    rows = []
+    valid_rows = []
     errors = []
     try:
         print('ETAPA 1: Conectando à IQ Option...', flush=True)
         api = connect(email, password)
         print('ETAPA 2: Conexão realizada.', flush=True)
-
-        # pairs() já ordena os candidatos por payout informado.
         available = pairs(api, CONFIG['kind'], CONFIG['payout'])
-        candidates = available[:max(CONFIG['candidates'], CONFIG['max_pairs'])]
+        candidates = available[:CONFIG['max_candidates']]
         print(f'ETAPA 5: Testando histórico de {len(candidates)} candidatos.', flush=True)
-
         if not candidates:
-            errors.append('Nenhum ativo retornou payout informado acima do mínimo configurado.')
+            errors.append('Nenhum candidato retornado pelo filtro de payout; abertura não verificada.')
 
-        for index, pair in enumerate(candidates, start=1):
+        for pair in candidates:
             try:
                 history = candles(api, pair, CONFIG['candles'])
-                if len(history) < 10:
-                    print(f'Ignorando {pair}: apenas {len(history)} velas.', flush=True)
+                if not history:
+                    print(f'IGNORADO {pair}: sem velas.', flush=True)
                     continue
-
                 result = analyze(history, CONFIG['payout'], CONFIG['stake'])
                 if result['cycles'] < CONFIG['min_cycles']:
-                    print(f'Ignorando {pair}: {result["cycles"]} ciclos.', flush=True)
+                    print(f"IGNORADO {pair}: {result['cycles']} ciclos.", flush=True)
                     continue
-
-                rows.append({'pair': pair, **result})
-                print(f'[{index}/{len(candidates)}] {pair}: {result["cycles"]} ciclos.', flush=True)
+                valid_rows.append({'pair': pair, **result})
+                print(f"VALIDO {pair}: {result['cycles']} ciclos.", flush=True)
             except Exception as exc:
-                # Ativos desconhecidos na versão instalada da biblioteca não bloqueiam o scan.
-                message = f'{pair}: {type(exc).__name__}: {str(exc)[:140]}'
-                errors.append(message)
-                print('Falha no ativo: ' + message, flush=True)
-
+                msg = f'{pair}: {str(exc)[:180]}'
+                errors.append(msg)
+                print(f'ERRO {msg}', flush=True)
     except Exception as exc:
-        message = f'{type(exc).__name__}: {str(exc)[:220]}'
-        errors.append(message)
-        print('Falha na coleta: ' + message, flush=True)
+        errors.append(f'Falha na coleta: {str(exc)[:250]}')
+        logging.exception('Falha geral na coleta')
     finally:
         if api is not None:
             try:
                 api.close_connect()
             except Exception:
-                pass
+                logging.exception('Falha ao encerrar conexão')
 
-    # Critério: limite inferior de Wilson 95%; desempate pelo PnL simulado.
-    rows.sort(key=lambda r: (r['ci95'][0], r['pnl']), reverse=True)
-    top = rows[:CONFIG['max_pairs']]
+    valid_rows.sort(key=lambda r: (r['ci95'][0], r['pnl']), reverse=True)
+    top = valid_rows[:CONFIG['max_pairs']]
+    print(f'ETAPA 6: {len(top)} pares válidos no ranking.', flush=True)
 
     with lock:
         state['scan_count'] += 1
-        state['updated_at'] = datetime.now(timezone.utc).isoformat()
-        state['errors'] = errors[-50:]
+        state['errors'] = errors[-40:]
         if top:
-            state['rows'] = top
-            state['status'] = 'concluído'
+            state.update(status='concluído', updated_at=datetime.now(timezone.utc).isoformat(), rows=top)
         else:
-            # Não apaga o último ranking válido em caso de falha.
-            state['status'] = 'erro' if not state['rows'] else 'dados anteriores'
+            state['status'] = 'sem novos resultados' if state['rows'] else 'erro'
             if not errors:
-                state['errors'] = ['Nenhum candidato atingiu o mínimo de ciclos nesta coleta.']
-
-    print(f'ETAPA 6: {len(top)} pares válidos no ranking.', flush=True)
+                state['errors'] = ['Nenhum ativo com histórico suficiente nesta coleta.']
 
 
 def loop():
     while True:
-        scan()
+        try:
+            scan()
+        except Exception:
+            logging.exception('Erro inesperado no ciclo de análise')
+            with lock:
+                state['status'] = 'erro'
         time.sleep(CONFIG['interval'])
 
 
@@ -139,14 +129,8 @@ def home():
 @app.get('/api/status')
 def status():
     with lock:
-        return {
-            'state': {
-                **state,
-                'rows': list(state['rows']),
-                'errors': list(state['errors']),
-            },
-            'config': {k: v for k, v in CONFIG.items() if k != 'stake'},
-        }
+        snapshot = {**state, 'rows': list(state['rows']), 'errors': list(state['errors'])}
+    return {'state': snapshot, 'config': {k: v for k, v in CONFIG.items() if k != 'stake'}}
 
 
 @app.get('/api/health')
@@ -156,5 +140,4 @@ def health():
 
 @app.get('/api/python-version')
 def python_version():
-    import sys
     return {'python_version': sys.version}
