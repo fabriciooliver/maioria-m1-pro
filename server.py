@@ -7,7 +7,18 @@ from engine import analyze
 from collector import connect,pairs,candles
 
 app=FastAPI(title='Maioria M1 Pro')
-app.mount('/static',StaticFiles(directory='static'),name='static')
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
+
+app.mount(
+    "/static",
+    StaticFiles(directory=str(STATIC_DIR)),
+    name="static"
+)
 lock=threading.Lock()
 state={'status':'aguardando','updated_at':None,'rows':[],'errors':[],'scan_count':0}
 CONFIG={'kind':os.getenv('IQ_MARKET','turbo'),'max_pairs':max(1,min(50,int(os.getenv('MAX_PAIRS','15')))),'candles':max(100,min(10000,int(os.getenv('CANDLES_PER_PAIR','2000')))),'payout':float(os.getenv('PAYOUT','86')),'stake':float(os.getenv('STAKE','10')),'interval':max(120,int(os.getenv('SCAN_INTERVAL_SECONDS','300')))}
