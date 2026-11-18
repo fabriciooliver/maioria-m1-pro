@@ -1,35 +1,10 @@
-
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Maioria M1 PRO</title>
-  <style>
-    body {
-      background: #101827;
-      color: white;
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 60px 20px;
-    }
-    h1 { color: #22c55e; }
-    .painel {
-      background: #1e293b;
-      padding: 30px;
-      border-radius: 12px;
-      max-width: 600px;
-      margin: auto;
-    }
-  </style>
-</head>
-<body>
-  <div class="painel">
-    <h1>MAIORIA M1 PRO</h1>
-    <h2>Servidor online!</h2>
-    <p>Painel de análise de opções binárias.</p>
-    <p>Estratégia Maioria M1 com até MG2.</p>
-    <p>Interface em desenvolvimento.</p>
-  </div>
-</body>
-</html>
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Maioria M1 PRO</title><style>
+:root{color-scheme:dark;--bg:#0b1220;--card:#172236;--muted:#98a8c0;--line:#2a3951;--green:#2bd58b;--red:#ff667b;--blue:#6ca8ff}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f3f7ff;font:15px system-ui,Arial,sans-serif}.wrap{max-width:1250px;margin:auto;padding:28px 20px}header,.between{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}h1{margin:0;font-size:26px;color:var(--green)}h2{font-size:17px;margin:0 0 14px}.muted{color:var(--muted)}.tag{padding:7px 12px;background:#26384f;border-radius:20px;font-size:13px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}.value{font-size:29px;font-weight:750;margin:10px 0}.green{color:var(--green)}.red{color:var(--red)}.blue{color:var(--blue)}.layout{display:grid;grid-template-columns:2fr 1fr;gap:16px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;text-align:left;white-space:nowrap}th,td{padding:12px 10px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-size:12px}tbody tr:hover{background:#21304a}.notice{margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-size:13px}#errors{white-space:pre-wrap;overflow-wrap:anywhere}button{background:#263b58;color:white;border:1px solid #3b5475;border-radius:8px;padding:9px 12px;cursor:pointer}button:hover{background:#345277}@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}}@media(max-width:520px){.grid{grid-template-columns:1fr 1fr}.value{font-size:23px}.wrap{padding:18px 10px}}
+</style></head><body><div class="wrap"><header><div><h1>MAIORIA M1 PRO</h1><div class="muted">Estratégia da maioria · M1 · Horários cravados</div></div><span class="tag" id="status">Conectando...</span></header>
+<div class="grid"><section class="card"><div class="muted">Próxima entrada (horário local)</div><div class="value blue" id="next">--:--</div><div class="muted" id="countdown">--:--</div></section><section class="card"><div class="muted">Pares analisados</div><div class="value" id="pairs">0</div><div class="muted" id="scan">Aguardando coleta</div></section><section class="card"><div class="muted">Payout configurado</div><div class="value" id="payout">86%</div><div class="muted">Não representa payout ao vivo</div></section><section class="card"><div class="muted">Última atualização</div><div class="value" style="font-size:20px" id="updated">—</div><div class="muted">Horário local do navegador</div></section></div>
+<div class="layout"><section class="card"><div class="between"><h2>Ranking de pares</h2><button onclick="refresh()">Atualizar agora</button></div><div class="table-wrap"><table><thead><tr><th>#</th><th>Par</th><th>Ciclos</th><th>WIN</th><th>MG1</th><th>MG2</th><th>LOSS</th><th>Acerto</th><th>Resultado</th></tr></thead><tbody id="rows"><tr><td colspan="9" class="muted">Aguardando análise...</td></tr></tbody></table></div></section><section class="card"><h2>Monitor do sistema</h2><p class="muted" id="message">Buscando dados do servidor...</p><div class="notice" id="errors">Nenhum erro informado.</div><div class="notice">Os resultados são retrospectivos. O painel não garante acertos e não executa ordens. Confirme payout, disponibilidade do ativo e horário na corretora antes de qualquer decisão.</div></section></div></div><script>
+const $=id=>document.getElementById(id);const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const number=x=>Number.isFinite(Number(x))?Number(x):0;
+function clock(){let now=new Date(), next=new Date(now);next.setSeconds(0,0);next.setMinutes(Math.floor(now.getMinutes()/5)*5+5);let diff=Math.max(0,Math.ceil((next-now)/1000));$('next').textContent=next.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});$('countdown').textContent='Faltam '+String(Math.floor(diff/60)).padStart(2,'0')+':'+String(diff%60).padStart(2,'0');}clock();setInterval(clock,1000);
+async function refresh(){try{let res=await fetch('/api/status',{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);let json=await res.json(),s=json.state||{},cfg=json.config||{},rows=Array.isArray(s.rows)?s.rows:[];$('status').textContent=s.status||'Sem status';$('pairs').textContent=rows.length;$('scan').textContent='Coletas: '+(s.scan_count??0);$('payout').textContent=(cfg.payout??86)+'%';$('updated').textContent=s.updated_at?new Date(s.updated_at).toLocaleString('pt-BR'):'Ainda não atualizado';$('message').textContent=rows.length?'Dados históricos recebidos.':'Nenhum par com resultados disponíveis ainda.';let errors=Array.isArray(s.errors)?s.errors:[];$('errors').textContent=errors.length?errors.join('\n'):'Nenhum erro informado.';$('rows').innerHTML=rows.length?rows.map((r,i)=>{let wr=number(r.win_rate),pnl=number(r.pnl);return `<tr><td>${i+1}</td><td>${esc(r.pair||'—')}</td><td>${number(r.cycles)}</td><td>${number(r.direct)}</td><td>${number(r.mg1)}</td><td>${number(r.mg2)}</td><td>${number(r.loss)}</td><td>${wr.toFixed(1)}%</td><td class="${pnl>=0?'green':'red'}">${pnl.toFixed(2)}</td></tr>`}).join(''):'<tr><td colspan="9" class="muted">Sem resultados. Confira os logs do Render.</td></tr>';}catch(e){$('status').textContent='Falha na consulta';$('message').textContent='Não foi possível consultar /api/status.';$('errors').textContent=String(e.message||e);}}refresh();setInterval(refresh,15000);
+</script></body></html>
