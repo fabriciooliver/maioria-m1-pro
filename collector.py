@@ -37,6 +37,17 @@ def pairs(api, kind, min_payout=86):
         raise ValueError('Tipo de mercado não suportado')
     print('ETAPA 3: Consultando pares Forex e payout...', flush=True)
     profits = api.get_all_profit()
+    
+    print(
+        "DIAGNOSTICO FOREX:",
+        [
+            (name, info.get(kind))
+            for name, info in profits.items()
+            if isinstance(info, dict) and is_forex_pair(name)
+        ][:30] if isinstance(profits, dict) else [],
+        flush=True
+    )
+
     if not isinstance(profits, dict):
         raise RuntimeError('Resposta inválida ao consultar payouts')
     selected = []
