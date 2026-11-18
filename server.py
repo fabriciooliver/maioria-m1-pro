@@ -65,3 +65,8 @@ def status():
 
 @app.get('/api/health')
 def health(): return {'ok':True}
+import sys
+
+@app.get("/api/python-version")
+def python_version():
+    return {"python_version": sys.version}
