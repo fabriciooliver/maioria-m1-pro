@@ -16,6 +16,7 @@ def connect(email, password):
 
 
 
+
 def pairs(api, kind, min_payout=86):
     if kind not in ("turbo", "binary"):
         raise ValueError("Tipo de mercado não suportado")
@@ -57,6 +58,7 @@ def pairs(api, kind, min_payout=86):
     )
 
     return [name for name, payout in selected]
+
 
 
 
