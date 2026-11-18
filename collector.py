@@ -13,17 +13,32 @@ def connect(email,password):
 
 
 
+
 def pairs(api, kind):
     if kind not in ("turbo", "binary"):
         raise ValueError("Tipo de mercado não suportado")
 
-    raw = api.get_all_open_time() or {}
+    print("ETAPA 3: Buscando pares...", flush=True)
 
-    return sorted(
+    raw = api.get_all_profit()
+
+    if not isinstance(raw, dict):
+        raise RuntimeError("Não foi possível obter os pares")
+
+    available = sorted(
         name
-        for name, info in raw.get(kind, {}).items()
-        if isinstance(info, dict) and info.get("open")
+        for name, info in raw.items()
+        if isinstance(info, dict)
+        and info.get(kind) is not None
     )
+
+    print(
+        f"ETAPA 4: {len(available)} pares encontrados.",
+        flush=True
+    )
+
+    return available
+
 
    
 
