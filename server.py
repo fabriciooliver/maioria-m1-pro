@@ -28,7 +28,7 @@ CONFIG = {
     'candles': max(100, min(10000, int(os.getenv('CANDLES_PER_PAIR', '2000')))),
     'payout': float(os.getenv('PAYOUT', '86')),
     'stake': float(os.getenv('STAKE', '10')),
-    'interval': max(120, int(os.getenv('SCAN_INTERVAL_SECONDS', '300'))),
+    'interval': max(60, int(os.getenv('SCAN_INTERVAL_SECONDS', '60'))),
 }
 
 lock = threading.Lock()
@@ -80,7 +80,6 @@ def scan():
                 msg = f'{pair}: {str(exc)[:180]}'
                 errors.append(msg)
                 print(f'ERRO {msg}', flush=True)
-              
     except Exception as exc:
         errors.append(f'Falha na coleta: {str(exc)[:250]}')
         logging.exception('Falha geral na coleta')
@@ -94,6 +93,7 @@ def scan():
                         close()
             except Exception:
                 logging.exception('Falha ao encerrar conexão')
+
     valid_rows.sort(key=lambda r: (r['ci95'][0], r['pnl']), reverse=True)
     top = valid_rows[:CONFIG['max_pairs']]
     print(f'ETAPA 6: {len(top)} pares válidos no ranking.', flush=True)
@@ -110,14 +110,18 @@ def scan():
 
 
 def loop():
+    # Agenda a próxima coleta a partir do início da anterior, evitando sobreposição.
+    # A coleta de 35 ativos/2000 velas pode demorar mais que um minuto.
     while True:
+        started = time.monotonic()
         try:
             scan()
         except Exception:
             logging.exception('Erro inesperado no ciclo de análise')
             with lock:
                 state['status'] = 'erro'
-        time.sleep(CONFIG['interval'])
+        elapsed = time.monotonic() - started
+        time.sleep(max(1, CONFIG['interval'] - elapsed))
 
 
 @app.on_event('startup')
