@@ -39,7 +39,11 @@ function clock(){const now=new Date(),next=new Date(now);next.setSeconds(0,0);ne
 function renderRows(rows){$('rows').innerHTML=rows.length?rows.map((r,i)=>{const lossDate=parsedDate(r.last_loss);const lossISO=lossDate?lossDate.toISOString():'';return `<tr><td>${i+1}</td><td class="pair">${esc(r.pair||'—')}</td><td>${number(r.cycles)}</td><td>${number(r.direct)}</td><td>${number(r.mg1)}</td><td>${number(r.mg2)}</td><td>${number(r.loss)}</td><td class="percent">${number(r.win_rate).toFixed(1)}%</td><td class="${lossDate?'red':'muted'}">${esc(formatLastLoss(r.last_loss))}</td><td><span class="pill" data-last-loss="${esc(lossISO)}">${esc(timeWithoutLoss(lossISO))}</span></td></tr>`;}).join(''):'<tr><td colspan="10" class="muted">Sem resultados. Confira os logs do Render.</td></tr>';}
 async function refresh(){const btn=$('refresh-button');btn.disabled=true;try{const res=await fetch('/api/status',{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);const json=await res.json(),s=json.state||{},cfg=json.config||{},rows=Array.isArray(s.rows)?s.rows:[];lastRows=rows;$('status').textContent=s.status||'Sem status';$('status').className='tag '+(s.status==='concluído'?'ok':s.status==='erro'?'bad':'');$('pairs').textContent=rows.length;$('scan').textContent='Coletas: '+(s.scan_count??0);$('payout').textContent=(cfg.payout??86)+'%';const updated=parsedDate(s.updated_at);$('updated').textContent=updated?formatter.format(updated):'Ainda não atualizado';const best=rows.reduce((a,b)=>!a||number(b.win_rate)>number(a.win_rate)?b:a,null);$('best').textContent=best?number(best.win_rate).toFixed(1)+'%':'—';$('best-pair').textContent=best?best.pair:'Aguardando análise';$('message').textContent=rows.length?'Dados históricos recebidos.':'Nenhum par com resultados disponíveis ainda.';const errors=Array.isArray(s.errors)?s.errors:[];$('errors').textContent=errors.length?errors.join('\n'):'Nenhum erro informado.';renderRows(rows);}catch(e){$('status').textContent='Falha na consulta';$('status').className='tag bad';$('message').textContent='Não foi possível consultar /api/status.';$('errors').textContent=String(e.message||e);}finally{btn.disabled=false;}}
 $('refresh-button').addEventListener('click',refresh);
-clock();setInterval(clock,1000);refresh();setInterval(refresh,15000);
+clock();
+setInterval(clock, 1000);
+
+refresh();
+setInterval(refresh, 5000);
 </script>
 </body>
 </html>
